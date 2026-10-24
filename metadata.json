@@ -1,0 +1,6 @@
+{
+  "name": "Trợ lý tra cứu tuyển sinh – THPT Châu Thị Tế – Tuyển sinh 2027",
+  "description": "Ứng dụng hỗ trợ định hướng ngành học, trắc nghiệm nghề nghiệp RIASEC và tra cứu thông tin trường đại học dành cho học sinh THPT Châu Thị Tế và phụ huynh năm 2027.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

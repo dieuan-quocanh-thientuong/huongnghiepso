@@ -1,0 +1,130 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny catch-all (First Pillar of Fortress Security)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Reusable Security Helpers
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Validation Blueprint for UserProfile
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['userId', 'displayName', 'email', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'displayName', 'email', 'photoURL', 'school', 'graduationYear', 'createdAt', 'updatedAt'])
+        && data.userId == request.auth.uid
+        && data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 100
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 120
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500))
+        && (!('school' in data) || (data.school is string && data.school.size() <= 100))
+        && (!('graduationYear' in data) || (data.graduationYear is number && data.graduationYear >= 2024 && data.graduationYear <= 2035))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint for QuizResultRecord
+    function isValidQuizResult(data) {
+      return data.keys().hasAll(['userId', 'primaryType', 'secondaryType', 'tertiaryType', 'code', 'scores', 'createdAt'])
+        && data.keys().hasOnly(['id', 'userId', 'primaryType', 'secondaryType', 'tertiaryType', 'code', 'scores', 'selectedSubjects', 'targetScoreRange', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.primaryType in ['R', 'I', 'A', 'S', 'E', 'C']
+        && data.secondaryType in ['R', 'I', 'A', 'S', 'E', 'C']
+        && data.tertiaryType in ['R', 'I', 'A', 'S', 'E', 'C']
+        && data.code is string && data.code.size() <= 6
+        && data.scores is map
+        && (!('targetScoreRange' in data) || (data.targetScoreRange is string && data.targetScoreRange.size() <= 50))
+        && (!('selectedSubjects' in data) || (data.selectedSubjects is list && data.selectedSubjects.size() <= 12))
+        && data.createdAt is timestamp;
+    }
+
+    // Validation Blueprint for SavedUniversityRecord
+    function isValidSavedUniversity(data) {
+      return data.keys().hasAll(['universityId', 'universityCode', 'universityName', 'savedAt'])
+        && data.keys().hasOnly(['universityId', 'universityCode', 'universityName', 'savedAt'])
+        && data.universityId is string && data.universityId.size() > 0 && data.universityId.size() <= 64
+        && data.universityCode is string && data.universityCode.size() > 0 && data.universityCode.size() <= 20
+        && data.universityName is string && data.universityName.size() > 0 && data.universityName.size() <= 200
+        && data.savedAt is timestamp;
+    }
+
+    // Validation Blueprint for CounselingInquiry
+    function isValidInquiry(data) {
+      return data.keys().hasAll(['userId', 'studentName', 'content', 'status', 'createdAt'])
+        && data.keys().hasOnly(['id', 'userId', 'studentName', 'studentClass', 'phone', 'content', 'targetMajor', 'status', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.studentName is string && data.studentName.size() > 0 && data.studentName.size() <= 100
+        && (!('studentClass' in data) || (data.studentClass is string && data.studentClass.size() <= 50))
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 25))
+        && data.content is string && data.content.size() > 0 && data.content.size() <= 1000
+        && (!('targetMajor' in data) || (data.targetMajor is string && data.targetMajor.size() <= 150))
+        && data.status in ['pending', 'answered']
+        && data.createdAt is timestamp;
+    }
+
+    // 1. User Profiles Collection
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId)
+                    && isValidUserProfile(incoming())
+                    && incoming().createdAt == request.time
+                    && incoming().updatedAt == request.time;
+      allow update: if isOwner(userId) && isValidId(userId)
+                    && isValidUserProfile(incoming())
+                    && incoming().userId == existing().userId
+                    && incoming().createdAt == existing().createdAt
+                    && incoming().updatedAt == request.time
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'school', 'graduationYear', 'updatedAt']);
+
+      // 2. User's Nested Quiz Results
+      match /quizResults/{resultId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(resultId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(resultId)
+                      && isValidQuizResult(incoming())
+                      && incoming().createdAt == request.time;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(resultId);
+      }
+
+      // 3. User's Nested Saved Universities
+      match /savedUniversities/{universityId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(universityId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(universityId)
+                      && isValidSavedUniversity(incoming())
+                      && incoming().savedAt == request.time;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(universityId);
+      }
+    }
+
+    // 4. Counseling Inquiries Collection
+    match /inquiries/{inquiryId} {
+      allow get: if isSignedIn() && isValidId(inquiryId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(inquiryId)
+                    && isValidInquiry(incoming())
+                    && incoming().status == 'pending'
+                    && incoming().createdAt == request.time;
+      allow delete: if isSignedIn() && isValidId(inquiryId) && existing().userId == request.auth.uid;
+    }
+  }
+}

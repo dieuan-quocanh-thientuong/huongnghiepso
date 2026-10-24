@@ -1,0 +1,214 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information for students or parents",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user",
+          "maxLength": 128
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Full name of student or parent",
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user",
+          "maxLength": 120
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Avatar image URL",
+          "maxLength": 500
+        },
+        "school": {
+          "type": "string",
+          "description": "High school name",
+          "maxLength": 100
+        },
+        "graduationYear": {
+          "type": "number",
+          "description": "Graduation exam year (e.g. 2027)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["userId", "displayName", "email", "createdAt", "updatedAt"]
+    },
+    "QuizResultRecord": {
+      "title": "QuizResultRecord",
+      "description": "Persisted RIASEC career orientation test result",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique result document ID",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID",
+          "maxLength": 128
+        },
+        "primaryType": {
+          "type": "string",
+          "description": "Primary RIASEC letter (R, I, A, S, E, C)",
+          "enum": ["R", "I", "A", "S", "E", "C"]
+        },
+        "secondaryType": {
+          "type": "string",
+          "description": "Secondary RIASEC letter",
+          "enum": ["R", "I", "A", "S", "E", "C"]
+        },
+        "tertiaryType": {
+          "type": "string",
+          "description": "Tertiary RIASEC letter",
+          "enum": ["R", "I", "A", "S", "E", "C"]
+        },
+        "code": {
+          "type": "string",
+          "description": "3-letter RIASEC orientation code",
+          "maxLength": 6
+        },
+        "scores": {
+          "type": "object",
+          "description": "Score distribution map for R, I, A, S, E, C"
+        },
+        "selectedSubjects": {
+          "type": "array",
+          "description": "High school subjects selected for 2027 exam"
+        },
+        "targetScoreRange": {
+          "type": "string",
+          "description": "Target score range category",
+          "maxLength": 50
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when quiz was completed"
+        }
+      },
+      "required": ["userId", "primaryType", "secondaryType", "tertiaryType", "code", "scores", "createdAt"]
+    },
+    "SavedUniversityRecord": {
+      "title": "SavedUniversityRecord",
+      "description": "A university bookmarked by the user",
+      "type": "object",
+      "properties": {
+        "universityId": {
+          "type": "string",
+          "description": "University identifier",
+          "maxLength": 64
+        },
+        "universityCode": {
+          "type": "string",
+          "description": "National admission code",
+          "maxLength": 20
+        },
+        "universityName": {
+          "type": "string",
+          "description": "University official name",
+          "maxLength": 200
+        },
+        "savedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when bookmarked"
+        }
+      },
+      "required": ["universityId", "universityCode", "universityName", "savedAt"]
+    },
+    "CounselingInquiry": {
+      "title": "CounselingInquiry",
+      "description": "Admissions counseling question submitted to school advisors",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique inquiry document ID",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "User UID who submitted inquiry",
+          "maxLength": 128
+        },
+        "studentName": {
+          "type": "string",
+          "description": "Full name of student or parent",
+          "maxLength": 100
+        },
+        "studentClass": {
+          "type": "string",
+          "description": "Class or grade (e.g. 11A1, 12A3)",
+          "maxLength": 50
+        },
+        "phone": {
+          "type": "string",
+          "description": "Contact phone number",
+          "maxLength": 25
+        },
+        "content": {
+          "type": "string",
+          "description": "Question or counseling inquiry content",
+          "maxLength": 1000
+        },
+        "targetMajor": {
+          "type": "string",
+          "description": "Target university or field of interest",
+          "maxLength": 150
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "answered"],
+          "description": "Processing status"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Submission timestamp"
+        }
+      },
+      "required": ["userId", "studentName", "content", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "User private profile document"
+    },
+    "/users/{userId}/quizResults/{resultId}": {
+      "schema": {
+        "$ref": "#/entities/QuizResultRecord"
+      },
+      "description": "History of RIASEC test results for the user"
+    },
+    "/users/{userId}/savedUniversities/{universityId}": {
+      "schema": {
+        "$ref": "#/entities/SavedUniversityRecord"
+      },
+      "description": "Saved universities for the user"
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": {
+        "$ref": "#/entities/CounselingInquiry"
+      },
+      "description": "Counseling questions submitted by students to THPT Chau Thi Te counselors"
+    }
+  }
+}
